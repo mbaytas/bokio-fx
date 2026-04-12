@@ -1,0 +1,28 @@
+{
+  "manifest_version": 3,
+  "name": "Bokio Currency Converter",
+  "version": "0.5",
+  "description": "Converts foreign currency amounts to SEK using Riksbanken rates on Bokio invoice pages.",
+  "permissions": [],
+  "host_permissions": [
+    "https://api.riksbank.se/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://app.bokio.se/*"],
+      "js": ["content.js"],
+      "css": ["style.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_title": "Bokio Currency Converter"
+  },
+  "icons": {
+    "48": "icon48.png",
+    "128": "icon128.png"
+  }
+}

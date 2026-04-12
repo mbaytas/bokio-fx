@@ -1,0 +1,290 @@
+/* Bokio Currency Converter */
+
+.bkx-toast-container {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 999999;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+}
+
+/* ── Card ──────────────────────────────────────────────────────── */
+
+.bkx-toast {
+  pointer-events: auto;
+  position: relative;
+  width: 360px;
+  background: #fff;
+  border: 1px solid #e2e2e6;
+  border-radius: 4px;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.06),
+    0 8px 32px -8px rgba(0, 0, 0, 0.1);
+  font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", system-ui, sans-serif;
+  font-size: 13px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  transform: translateX(calc(100% + 32px)) scale(0.96);
+  opacity: 0;
+  animation: bkx-enter 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.bkx-toast.bkx-toast-dismiss {
+  transform: translateX(calc(100% + 32px)) scale(0.96);
+  opacity: 0;
+  transition: transform 0.4s cubic-bezier(0.4, 0, 1, 1),
+              opacity 0.25s ease;
+}
+
+@keyframes bkx-enter {
+  from { transform: translateX(calc(100% + 32px)) scale(0.96); opacity: 0; }
+  to   { transform: translateX(0) scale(1); opacity: 1; }
+}
+
+/* ── Header ────────────────────────────────────────────────────── */
+
+.bkx-toast-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.bkx-toast-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #111;
+  letter-spacing: -0.01em;
+}
+
+.bkx-toast-arrow {
+  color: #0e9a6b;
+  margin: 0 1px;
+}
+
+.bkx-toast-header-right {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.bkx-toast-close {
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: transparent;
+  color: #999;
+  cursor: pointer;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  line-height: 1;
+  padding: 0;
+  flex-shrink: 0;
+  transition: background 0.15s, color 0.15s;
+}
+
+.bkx-toast-close:hover {
+  background: #f0f0f2;
+  color: #555;
+}
+
+.bkx-toast-change {
+  border: none;
+  background: transparent;
+  color: #999;
+  font-size: 10.5px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 3px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  transition: background 0.15s, color 0.15s;
+}
+
+.bkx-toast-change:hover {
+  background: #f0f0f2;
+  color: #555;
+}
+
+/* ── Content area ──────────────────────────────────────────────── */
+
+[data-role="content"] {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+[data-role="content"] > * {
+  opacity: 0;
+  animation: bkx-content-in 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+[data-role="content"] > *:nth-child(1) { animation-delay: 0.04s; }
+[data-role="content"] > *:nth-child(2) { animation-delay: 0.10s; }
+[data-role="content"] > *:nth-child(3) { animation-delay: 0.16s; }
+
+@keyframes bkx-content-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Conversion display ────────────────────────────────────────── */
+
+.bkx-toast-body {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+
+.bkx-toast-calc {
+  font-size: 13px;
+  color: #777;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+}
+
+.bkx-toast-date {
+  font-size: 11px;
+  color: #aaa;
+}
+
+.bkx-toast-result {
+  font-weight: 700;
+  font-size: 22px;
+  color: #0e9a6b;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.025em;
+  line-height: 1.2;
+}
+
+/* ── Buttons ───────────────────────────────────────────────────── */
+
+.bkx-toast-actions {
+  display: flex;
+  gap: 8px;
+  padding-top: 4px;
+}
+
+.bkx-toast-btn {
+  flex: 1;
+  padding: 9px 0;
+  border: none;
+  border-radius: 3px;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  letter-spacing: 0.01em;
+  transition: background 0.15s, color 0.15s, transform 0.15s;
+}
+
+.bkx-toast-btn:active {
+  transform: scale(0.97);
+}
+
+.bkx-toast-btn-primary {
+  background: #111;
+  color: #fff;
+}
+
+.bkx-toast-btn-primary:hover {
+  background: #333;
+}
+
+.bkx-toast-btn-primary.bkx-applied {
+  background: #0e9a6b;
+  color: #fff;
+  cursor: default;
+}
+
+.bkx-toast-btn-secondary {
+  background: #f5f5f7;
+  color: #555;
+  border: 1px solid #e2e2e6;
+}
+
+.bkx-toast-btn-secondary:hover {
+  background: #ebebef;
+}
+
+/* ── Loading ───────────────────────────────────────────────────── */
+
+.bkx-toast-loading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
+  color: #777;
+}
+
+.bkx-toast-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid #e2e2e6;
+  border-top-color: #0e9a6b;
+  border-radius: 50%;
+  animation: bkx-spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes bkx-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Error ─────────────────────────────────────────────────────── */
+
+.bkx-toast.bkx-toast-error {
+  border-color: #f5c6c6;
+}
+
+.bkx-toast-error .bkx-toast-title {
+  color: #c53030;
+}
+
+.bkx-toast-error-msg {
+  font-size: 13px;
+  color: #c53030;
+}
+
+/* ── Currency select ───────────────────────────────────────────── */
+
+.bkx-toast-select {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid #e2e2e6;
+  border-radius: 3px;
+  font-size: 13px;
+  font-family: inherit;
+  color: #333;
+  background: #fafafa;
+  cursor: pointer;
+  transition: border-color 0.15s;
+  -webkit-font-smoothing: antialiased;
+}
+
+.bkx-toast-select:hover {
+  border-color: #ccc;
+}
+
+.bkx-toast-select:focus {
+  outline: none;
+  border-color: #0e9a6b;
+}
+
+.bkx-toast-select.bkx-toast-select-hidden {
+  display: none;
+}
