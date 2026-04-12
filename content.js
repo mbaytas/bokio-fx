@@ -166,15 +166,19 @@
   }
 
   function autoDetectCurrency() {
-    const body = document.body.textContent;
+    const clone = document.body.cloneNode(true);
+    const ours = clone.querySelector(".bkx-toast-container");
+    if (ours) ours.remove();
+    const text = clone.textContent;
+
     for (const code of Object.keys(CURRENCIES)) {
-      if (new RegExp(`\\b${code}\\b`).test(body)) {
+      if (new RegExp(`\\b${code}\\b`).test(text)) {
         log("auto-detected currency:", code, "(by code)");
         return code;
       }
     }
     for (const [symbol, code] of Object.entries(SYMBOL_TO_CODE)) {
-      if (body.includes(symbol)) {
+      if (text.includes(symbol)) {
         log("auto-detected currency:", code, "(by symbol", symbol + ")");
         return code;
       }
@@ -372,13 +376,14 @@
     } else if (manual) {
       log("run: no currency detected, showing picker (manual)");
       showPicker();
-    } else if (retryCount < 8) {
+    } else if (retryCount < 5) {
       retryCount++;
-      const delay = Math.min(retryCount * 500, 3000);
+      const delay = retryCount * 500;
       log("run: no currency detected, retry", retryCount, "in", delay + "ms");
       setTimeout(run, delay);
     } else {
-      log("run: no currency detected after", retryCount, "retries, giving up");
+      log("run: no currency detected after retries, showing picker");
+      showPicker();
     }
   }
 
