@@ -1,11 +1,12 @@
 {
   "manifest_version": 3,
   "name": "Bokio Currency Converter",
-  "version": "0.5",
+  "version": "0.6",
   "description": "Converts foreign currency amounts to SEK using Riksbanken rates on Bokio invoice pages.",
-  "permissions": [],
+  "permissions": ["offscreen"],
   "host_permissions": [
-    "https://api.riksbank.se/*"
+    "https://api.riksbank.se/*",
+    "https://app.bokio.se/*"
   ],
   "background": {
     "service_worker": "background.js"
@@ -16,6 +17,24 @@
       "js": ["content.js"],
       "css": ["style.css"],
       "run_at": "document_idle"
+    }
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "lib/tesseract.min.js",
+        "lib/worker.min.js",
+        "lib/worker-ext.js",
+        "lib/tesseract-core.wasm.js",
+        "lib/tesseract-core-simd.wasm.js",
+        "lib/tesseract-core-lstm.wasm.js",
+        "lib/tesseract-core-simd-lstm.wasm.js",
+        "lib/lang/eng.traineddata"
+      ],
+      "matches": ["<all_urls>"]
     }
   ],
   "action": {

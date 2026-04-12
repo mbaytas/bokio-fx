@@ -39,6 +39,50 @@
     if (info.symbol) SYMBOL_TO_CODE[info.symbol] = code;
   }
 
+  const EU_COUNTRIES = new Set([
+    "austria", "belgium", "bulgaria", "croatia", "cyprus", "czech republic",
+    "czechia", "denmark", "estonia", "finland", "france", "germany", "greece",
+    "hungary", "ireland", "italy", "latvia", "lithuania", "luxembourg",
+    "malta", "netherlands", "poland", "portugal", "romania", "slovakia",
+    "slovenia", "spain",
+  ]);
+  const SWEDEN_NAMES = new Set(["sweden", "sverige"]);
+
+  function detectSellerRegion(ocrText) {
+    if (!ocrText) return null;
+    const text = ocrText.toLowerCase();
+    const countryPattern = /\b(?:austria|belgium|bulgaria|croatia|cyprus|czech\s*republic|czechia|denmark|estonia|finland|france|germany|greece|hungary|ireland|italy|latvia|lithuania|luxembourg|malta|netherlands|holland|poland|portugal|romania|slovakia|slovenia|spain|sweden|sverige|united\s*states|united\s*kingdom|great\s*britain|england|scotland|wales|norway|switzerland|japan|china|canada|australia|new\s*zealand|brazil|mexico|india|south\s*korea|singapore|thailand|south\s*africa|iceland|turkey|türkiye|hong\s*kong|taiwan)\b/gi;
+    const found = [];
+    let m;
+    while ((m = countryPattern.exec(text)) !== null) {
+      found.push(m[0].trim().toLowerCase());
+    }
+    log("countries found in OCR text:", found);
+
+    const foreign = found.filter((c) => !SWEDEN_NAMES.has(c));
+    if (foreign.length === 0) {
+      if (found.length > 0) {
+        log("only Sweden found — domestic invoice");
+        return "Sverige";
+      }
+      log("no country detected in OCR text");
+      return null;
+    }
+
+    const country = foreign[0];
+    log("seller country detected:", country);
+    if (EU_COUNTRIES.has(country) || (country === "holland")) {
+      return "Från EU-land";
+    }
+    return "Från icke EU-land";
+  }
+
+  function getCurrentSellerCountry() {
+    const toggle = document.querySelector('[data-testid="MultiSelect_ToggleButton"]');
+    if (!toggle) return null;
+    return toggle.textContent.trim();
+  }
+
   const rateCache = {};
   let containerEl = null;
   let toastEl = null;
@@ -46,7 +90,6 @@
   let hasRun = false;
   let suppressed = false;
   let converting = false;
-  let retryCount = 0;
 
   // ── Toast container ─────────────────────────────────────────────
 
@@ -165,22 +208,130 @@
     return isNaN(val) ? null : val;
   }
 
-  function autoDetectCurrency() {
-    const text = document.body.textContent;
-    for (const code of Object.keys(CURRENCIES)) {
-      if (new RegExp(`\\b${code}\\b`).test(text)) {
-        log("auto-detected currency:", code, "(by code)");
+  const OCR_PATTERNS = [
+    { pattern: /\bSEK\b/,                          code: "SEK" },
+    { pattern: /\bkronor\b/i,                       code: "SEK" },
+    { pattern: /€/,                               code: "EUR" },
+    { pattern: /\bEUR\b/,                          code: "EUR" },
+    { pattern: /\bEuro\b/i,                        code: "EUR" },
+    { pattern: /[€E¢C]\s*\d[\d.,]*\d{2}\b/,        code: "EUR" },
+    { pattern: /\d[\d.,]*\d{2}\s*[€]/,             code: "EUR" },
+    { pattern: /\bUSD\b/,                          code: "USD" },
+    { pattern: /\$\s*\d[\d.,]*\d{2}\b/,            code: "USD" },
+    { pattern: /\d[\d.,]*\d{2}\s*\$/,              code: "USD" },
+    { pattern: /£/,                                code: "GBP" },
+    { pattern: /\bGBP\b/,                          code: "GBP" },
+    { pattern: /£\s*\d[\d.,]*\d{2}\b/,             code: "GBP" },
+    { pattern: /₺/,                                code: "TRY" },
+    { pattern: /\bTRY\b/,                          code: "TRY" },
+    { pattern: /¥/,                                code: "JPY" },
+    { pattern: /\bJPY\b/,                          code: "JPY" },
+    { pattern: /₹/,                                code: "INR" },
+    { pattern: /\bINR\b/,                          code: "INR" },
+    { pattern: /₩/,                                code: "KRW" },
+    { pattern: /\bKRW\b/,                          code: "KRW" },
+    { pattern: /R\$/,                              code: "BRL" },
+    { pattern: /\bBRL\b/,                          code: "BRL" },
+    { pattern: /\bNOK\b/,                          code: "NOK" },
+    { pattern: /\bDKK\b/,                          code: "DKK" },
+    { pattern: /\bCHF\b/,                          code: "CHF" },
+    { pattern: /\bCAD\b/,                          code: "CAD" },
+    { pattern: /\bAUD\b/,                          code: "AUD" },
+    { pattern: /\bNZD\b/,                          code: "NZD" },
+    { pattern: /\bPLN\b/,                          code: "PLN" },
+    { pattern: /\bCZK\b/,                          code: "CZK" },
+    { pattern: /\bHUF\b/,                          code: "HUF" },
+    { pattern: /\bCNY\b/,                          code: "CNY" },
+    { pattern: /\bHKD\b/,                          code: "HKD" },
+    { pattern: /\bSGD\b/,                          code: "SGD" },
+    { pattern: /\bTHB\b/,                          code: "THB" },
+    { pattern: /\bMXN\b/,                          code: "MXN" },
+    { pattern: /\bZAR\b/,                          code: "ZAR" },
+    { pattern: /\bISK\b/,                          code: "ISK" },
+  ];
+
+  function detectCurrencyInText(text, source) {
+    log("scanning text for currency (" + source + "), length:", text.length);
+    log("OCR text:", text);
+
+    for (const { pattern, code } of OCR_PATTERNS) {
+      const found = pattern.test(text);
+      if (found) {
+        const match = text.match(pattern);
+        log("detected currency:", code, "via pattern", pattern.toString(), "matched:", match?.[0]);
         return code;
       }
     }
-    for (const [symbol, code] of Object.entries(SYMBOL_TO_CODE)) {
-      if (text.includes(symbol)) {
-        log("auto-detected currency:", code, "(by symbol", symbol + ")");
-        return code;
-      }
-    }
-    log("auto-detect: no currency found");
+    log("no currency found in", source);
     return null;
+  }
+
+  async function ocrDetectCurrency() {
+    log("looking for receipt image...");
+    const img = document.querySelector('img[data-testid="ReceiptPageViewInReceiptOverview_Image"]');
+    if (!img) {
+      log("no receipt image found");
+      return { currency: null, region: null };
+    }
+    log("receipt image found, src:", img.src?.substring(0, 80) + "...");
+
+    try {
+      let dataUrl;
+      try {
+        const w = img.naturalWidth || img.width;
+        const h = img.naturalHeight || img.height;
+        log("canvas size:", w, "x", h);
+        const canvas = document.createElement("canvas");
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0);
+        dataUrl = canvas.toDataURL("image/png");
+        log("image captured via canvas, base64 length:", dataUrl.length);
+      } catch (canvasErr) {
+        log("canvas tainted (cross-origin), fetching image directly...");
+        const resp = await fetch(img.src);
+        const blob = await resp.blob();
+        dataUrl = await new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result);
+          reader.readAsDataURL(blob);
+        });
+        log("image fetched directly, base64 length:", dataUrl.length);
+      }
+
+      log("sending image to OCR...");
+      const OCR_TIMEOUT = 30000;
+      const result = await new Promise((resolve, reject) => {
+        const timer = setTimeout(() => {
+          log("OCR timed out after", OCR_TIMEOUT + "ms");
+          resolve({ ok: false, error: "OCR timed out" });
+        }, OCR_TIMEOUT);
+        chrome.runtime.sendMessage(
+          { type: "OCR_IMAGE", imageData: dataUrl },
+          (response) => {
+            clearTimeout(timer);
+            if (chrome.runtime.lastError) {
+              return reject(new Error(chrome.runtime.lastError.message));
+            }
+            resolve(response);
+          }
+        );
+      });
+
+      if (!result?.ok) {
+        log("OCR failed:", result?.error);
+        return null;
+      }
+
+      log("OCR raw text:", result.text);
+      const currency = detectCurrencyInText(result.text, "OCR");
+      const region = detectSellerRegion(result.text);
+      return { currency, region };
+    } catch (err) {
+      log("OCR error:", err.message);
+      return { currency: null, region: null };
+    }
   }
 
   function setReactInputValue(input, value) {
@@ -228,7 +379,7 @@
 
   // ── Conversion flow ─────────────────────────────────────────────
 
-  async function convert(currency) {
+  async function convert(currency, region) {
     log("convert:", currency);
     const amountInput = getAmountInput();
     const dateStr = getPaymentDate();
@@ -249,11 +400,8 @@
 
     showToast(`
       <div class="bkx-toast-header">
-        <span class="bkx-toast-title">${sym} ${currency} <span class="bkx-toast-arrow">→</span> SEK</span>
-        <span class="bkx-toast-header-right">
-          <button class="bkx-toast-change" data-action="change">Change</button>
-          <button class="bkx-toast-close">✕</button>
-        </span>
+        <span class="bkx-toast-title"><span class="bkx-toast-currency" data-action="change">${sym} ${currency}</span> <span class="bkx-toast-arrow">→</span> SEK</span>
+        <button class="bkx-toast-close">✕</button>
       </div>
       <select class="bkx-toast-select bkx-toast-select-hidden" data-role="currency-change">
         ${buildCurrencyOptions(currency)}
@@ -302,7 +450,29 @@
           <button class="bkx-toast-btn bkx-toast-btn-primary" data-action="apply">Apply</button>
           <button class="bkx-toast-btn bkx-toast-btn-secondary" data-action="dismiss">Dismiss</button>
         </div>
+        ${region ? `<div class="bkx-toast-region" data-role="region-indicator"></div>` : ""}
       `;
+
+      if (region) {
+        const regionEl = currentToast.querySelector('[data-role="region-indicator"]');
+        function updateRegionIndicator() {
+          const current = getCurrentSellerCountry();
+          const match = current && current.includes(region);
+          log("region indicator update — suggestion:", region, "current:", current, "match:", match);
+          regionEl.className = "bkx-toast-region " + (match ? "bkx-region-ok" : "bkx-region-warn");
+          regionEl.innerHTML = `
+            <span class="bkx-toast-region-icon">${match ? "✓" : "!"}</span>
+            <span class="bkx-toast-region-label">Säljarens land: ${region}</span>
+          `;
+        }
+        updateRegionIndicator();
+
+        function deferredUpdate() {
+          setTimeout(updateRegionIndicator, 300);
+        }
+        document.addEventListener("click", deferredUpdate, true);
+        document.addEventListener("keyup", deferredUpdate, true);
+      }
 
       currentToast.querySelector('[data-action="apply"]').addEventListener("click", (e) => {
         log("apply:", fmtSek, "kr");
@@ -343,7 +513,6 @@
       lastState = "";
       hasRun = false;
       suppressed = false;
-      retryCount = 0;
       return;
     }
 
@@ -359,29 +528,35 @@
     const amount = parseAmount(amountInput.value);
     if (!amount || amount <= 0) { log("run: invalid amount:", amountInput.value); return; }
 
-    const detected = autoDetectCurrency();
+    if (hasRun && !manual) { log("run: already handled, skipping auto"); return; }
 
-    if (detected) {
-      retryCount = 0;
+    hasRun = true;
+    log("run: inputs ready, starting OCR detection...");
+    showToast(`
+      <div class="bkx-toast-header">
+        <span class="bkx-toast-title">Reading receipt…</span>
+        <button class="bkx-toast-close">✕</button>
+      </div>
+      <div data-role="content">
+        <div class="bkx-toast-loading">
+          <span class="bkx-toast-spinner"></span>
+          Scanning for currency…
+        </div>
+      </div>
+    `);
+
+    const { currency: detected, region } = await ocrDetectCurrency();
+
+    if (detected === "SEK") {
+      log("run: receipt is in SEK (via OCR), no conversion needed");
+      dismissToast(false);
+    } else if (detected) {
       const state = `${detected}_${amount}_${dateStr}`;
-      if (state === lastState) { log("run: state unchanged:", state); return; }
-      log("run: new state:", state, "(was:", lastState + ")");
-      hasRun = true;
+      log("run: OCR detected", detected, "region:", region, "— state:", state);
       lastState = state;
-      await convert(detected);
-    } else if (manual) {
-      log("run: no currency detected, showing picker (manual)");
-      showPicker();
-    } else if (hasRun) {
-      log("run: no currency detected, already shown picker");
-    } else if (retryCount < 5) {
-      retryCount++;
-      const delay = retryCount * 500;
-      log("run: no currency detected, retry", retryCount, "in", delay + "ms");
-      setTimeout(run, delay);
+      await convert(detected, region);
     } else {
-      log("run: no currency detected after retries, showing picker");
-      hasRun = true;
+      log("run: OCR found no currency, showing picker");
       showPicker();
     }
   }
@@ -394,7 +569,6 @@
       suppressed = false;
       lastState = "";
       hasRun = false;
-      retryCount = 0;
       run(true);
     }
   });

@@ -65,16 +65,21 @@
   letter-spacing: -0.01em;
 }
 
+.bkx-toast-currency {
+  cursor: pointer;
+  border-bottom: 1px dashed #ccc;
+  padding-bottom: 1px;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.bkx-toast-currency:hover {
+  border-bottom-color: #0e9a6b;
+  color: #0e9a6b;
+}
+
 .bkx-toast-arrow {
   color: #0e9a6b;
   margin: 0 1px;
-}
-
-.bkx-toast-header-right {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  flex-shrink: 0;
 }
 
 .bkx-toast-close {
@@ -100,25 +105,6 @@
   color: #555;
 }
 
-.bkx-toast-change {
-  border: none;
-  background: transparent;
-  color: #999;
-  font-size: 10.5px;
-  font-weight: 600;
-  font-family: inherit;
-  cursor: pointer;
-  padding: 4px 8px;
-  border-radius: 3px;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  transition: background 0.15s, color 0.15s;
-}
-
-.bkx-toast-change:hover {
-  background: #f0f0f2;
-  color: #555;
-}
 
 /* ── Content area ──────────────────────────────────────────────── */
 
@@ -128,18 +114,6 @@
   gap: 10px;
 }
 
-[data-role="content"] > * {
-  opacity: 0;
-  animation: bkx-content-in 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-[data-role="content"] > *:nth-child(1) { animation-delay: 0.04s; }
-[data-role="content"] > *:nth-child(2) { animation-delay: 0.10s; }
-[data-role="content"] > *:nth-child(3) { animation-delay: 0.16s; }
-
-@keyframes bkx-content-in {
-  from { opacity: 0; transform: translateY(4px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
 
 /* ── Conversion display ────────────────────────────────────────── */
 
@@ -219,6 +193,49 @@
 
 .bkx-toast-btn-secondary:hover {
   background: #ebebef;
+}
+
+/* ── Region indicator ──────────────────────────────────────────── */
+
+.bkx-toast-region {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  margin-top: 4px;
+  border-top: 1px solid #e2e2e6;
+  padding-top: 14px;
+  border-radius: 3px;
+  font-size: 12px;
+}
+
+.bkx-toast-region-icon {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  font-size: 0;
+  line-height: 0;
+}
+
+.bkx-toast-region-label {
+  font-weight: 500;
+}
+
+.bkx-region-ok {
+  color: #065f46;
+}
+
+.bkx-region-ok .bkx-toast-region-icon {
+  background: #0e9a6b;
+}
+
+.bkx-region-warn {
+  color: #92400e;
+}
+
+.bkx-region-warn .bkx-toast-region-icon {
+  background: #f59e0b;
 }
 
 /* ── Loading ───────────────────────────────────────────────────── */
