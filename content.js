@@ -166,11 +166,7 @@
   }
 
   function autoDetectCurrency() {
-    const clone = document.body.cloneNode(true);
-    const ours = clone.querySelector(".bkx-toast-container");
-    if (ours) ours.remove();
-    const text = clone.textContent;
-
+    const text = document.body.textContent;
     for (const code of Object.keys(CURRENCIES)) {
       if (new RegExp(`\\b${code}\\b`).test(text)) {
         log("auto-detected currency:", code, "(by code)");
