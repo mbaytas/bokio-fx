@@ -1,4 +1,4 @@
-const TAG = "[BKX ocr]";
+const TAG = "[BFX ocr]";
 const log = (...args) => console.log(TAG, ...args);
 
 log("offscreen document loaded");

@@ -1,6 +1,6 @@
-/* Bokio Currency Converter */
+/* Bokio FX */
 
-.bkx-toast-container {
+.bfx-toast-container {
   position: fixed;
   top: 20px;
   right: 20px;
@@ -13,7 +13,7 @@
 
 /* ── Card ──────────────────────────────────────────────────────── */
 
-.bkx-toast {
+.bfx-toast {
   pointer-events: auto;
   position: relative;
   width: 360px;
@@ -34,55 +34,55 @@
   -moz-osx-font-smoothing: grayscale;
   transform: translateX(calc(100% + 32px)) scale(0.96);
   opacity: 0;
-  animation: bkx-enter 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: bfx-enter 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
-.bkx-toast.bkx-toast-dismiss {
+.bfx-toast.bfx-toast-dismiss {
   transform: translateX(calc(100% + 32px)) scale(0.96);
   opacity: 0;
   transition: transform 0.4s cubic-bezier(0.4, 0, 1, 1),
               opacity 0.25s ease;
 }
 
-@keyframes bkx-enter {
+@keyframes bfx-enter {
   from { transform: translateX(calc(100% + 32px)) scale(0.96); opacity: 0; }
   to   { transform: translateX(0) scale(1); opacity: 1; }
 }
 
 /* ── Header ────────────────────────────────────────────────────── */
 
-.bkx-toast-header {
+.bfx-toast-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
 }
 
-.bkx-toast-title {
+.bfx-toast-title {
   font-size: 13px;
   font-weight: 600;
   color: #111;
   letter-spacing: -0.01em;
 }
 
-.bkx-toast-currency {
+.bfx-toast-currency {
   cursor: pointer;
   border-bottom: 1px dashed #ccc;
   padding-bottom: 1px;
   transition: border-color 0.15s, color 0.15s;
 }
 
-.bkx-toast-currency:hover {
+.bfx-toast-currency:hover {
   border-bottom-color: #0e9a6b;
   color: #0e9a6b;
 }
 
-.bkx-toast-arrow {
+.bfx-toast-arrow {
   color: #0e9a6b;
   margin: 0 1px;
 }
 
-.bkx-toast-close {
+.bfx-toast-close {
   width: 24px;
   height: 24px;
   border: none;
@@ -100,7 +100,7 @@
   transition: background 0.15s, color 0.15s;
 }
 
-.bkx-toast-close:hover {
+.bfx-toast-close:hover {
   background: #f0f0f2;
   color: #555;
 }
@@ -115,28 +115,69 @@
 }
 
 
-/* ── Conversion display ────────────────────────────────────────── */
+/* ── Rate panel ────────────────────────────────────────────────── */
 
-.bkx-toast-body {
+.bfx-rate-panel {
+  background: #f8f8fa;
+  border: 1px solid #ebebef;
+  border-radius: 3px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.bfx-rate-row {
   display: flex;
   align-items: baseline;
-  gap: 7px;
-  flex-wrap: wrap;
-}
-
-.bkx-toast-calc {
-  font-size: 13px;
-  color: #777;
+  gap: 6px;
   font-variant-numeric: tabular-nums;
-  letter-spacing: 0.01em;
 }
 
-.bkx-toast-date {
+.bfx-rate-amount {
+  font-size: 13px;
+  font-weight: 600;
+  color: #333;
+}
+
+.bfx-rate-op {
   font-size: 11px;
   color: #aaa;
 }
 
-.bkx-toast-result {
+.bfx-rate-value {
+  font-size: 13px;
+  font-weight: 600;
+  color: #333;
+  letter-spacing: 0.01em;
+}
+
+.bfx-rate-meta {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: #999;
+}
+
+.bfx-rate-sep {
+  color: #ccc;
+}
+
+.bfx-rate-source {
+  color: #aaa;
+  letter-spacing: 0.02em;
+}
+
+/* ── Result ────────────────────────────────────────────────────── */
+
+.bfx-result-row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.bfx-result-value {
   font-weight: 700;
   font-size: 22px;
   color: #0e9a6b;
@@ -145,15 +186,23 @@
   line-height: 1.2;
 }
 
+.bfx-result-unit {
+  font-size: 13px;
+  font-weight: 600;
+  color: #0e9a6b;
+  opacity: 0.6;
+  letter-spacing: 0.03em;
+}
+
 /* ── Buttons ───────────────────────────────────────────────────── */
 
-.bkx-toast-actions {
+.bfx-toast-actions {
   display: flex;
   gap: 8px;
   padding-top: 4px;
 }
 
-.bkx-toast-btn {
+.bfx-toast-btn {
   flex: 1;
   padding: 9px 0;
   border: none;
@@ -166,38 +215,38 @@
   transition: background 0.15s, color 0.15s, transform 0.15s;
 }
 
-.bkx-toast-btn:active {
+.bfx-toast-btn:active {
   transform: scale(0.97);
 }
 
-.bkx-toast-btn-primary {
+.bfx-toast-btn-primary {
   background: #111;
   color: #fff;
 }
 
-.bkx-toast-btn-primary:hover {
+.bfx-toast-btn-primary:hover {
   background: #333;
 }
 
-.bkx-toast-btn-primary.bkx-applied {
+.bfx-toast-btn-primary.bfx-applied {
   background: #0e9a6b;
   color: #fff;
   cursor: default;
 }
 
-.bkx-toast-btn-secondary {
+.bfx-toast-btn-secondary {
   background: #f5f5f7;
   color: #555;
   border: 1px solid #e2e2e6;
 }
 
-.bkx-toast-btn-secondary:hover {
+.bfx-toast-btn-secondary:hover {
   background: #ebebef;
 }
 
 /* ── Region indicator ──────────────────────────────────────────── */
 
-.bkx-toast-region {
+.bfx-toast-region {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -209,7 +258,7 @@
   font-size: 12px;
 }
 
-.bkx-toast-region-icon {
+.bfx-toast-region-icon {
   width: 6px;
   height: 6px;
   border-radius: 50%;
@@ -218,29 +267,29 @@
   line-height: 0;
 }
 
-.bkx-toast-region-label {
+.bfx-toast-region-label {
   font-weight: 500;
 }
 
-.bkx-region-ok {
+.bfx-region-ok {
   color: #065f46;
 }
 
-.bkx-region-ok .bkx-toast-region-icon {
+.bfx-region-ok .bfx-toast-region-icon {
   background: #0e9a6b;
 }
 
-.bkx-region-warn {
+.bfx-region-warn {
   color: #92400e;
 }
 
-.bkx-region-warn .bkx-toast-region-icon {
+.bfx-region-warn .bfx-toast-region-icon {
   background: #f59e0b;
 }
 
 /* ── Loading ───────────────────────────────────────────────────── */
 
-.bkx-toast-loading {
+.bfx-toast-loading {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -248,38 +297,38 @@
   color: #777;
 }
 
-.bkx-toast-spinner {
+.bfx-toast-spinner {
   width: 16px;
   height: 16px;
   border: 2px solid #e2e2e6;
   border-top-color: #0e9a6b;
   border-radius: 50%;
-  animation: bkx-spin 0.7s linear infinite;
+  animation: bfx-spin 0.7s linear infinite;
   flex-shrink: 0;
 }
 
-@keyframes bkx-spin {
+@keyframes bfx-spin {
   to { transform: rotate(360deg); }
 }
 
 /* ── Error ─────────────────────────────────────────────────────── */
 
-.bkx-toast.bkx-toast-error {
+.bfx-toast.bfx-toast-error {
   border-color: #f5c6c6;
 }
 
-.bkx-toast-error .bkx-toast-title {
+.bfx-toast-error .bfx-toast-title {
   color: #c53030;
 }
 
-.bkx-toast-error-msg {
+.bfx-toast-error-msg {
   font-size: 13px;
   color: #c53030;
 }
 
 /* ── Currency select ───────────────────────────────────────────── */
 
-.bkx-toast-select {
+.bfx-toast-select {
   width: 100%;
   padding: 9px 12px;
   border: 1px solid #e2e2e6;
@@ -293,15 +342,15 @@
   -webkit-font-smoothing: antialiased;
 }
 
-.bkx-toast-select:hover {
+.bfx-toast-select:hover {
   border-color: #ccc;
 }
 
-.bkx-toast-select:focus {
+.bfx-toast-select:focus {
   outline: none;
   border-color: #0e9a6b;
 }
 
-.bkx-toast-select.bkx-toast-select-hidden {
+.bfx-toast-select.bfx-toast-select-hidden {
   display: none;
 }

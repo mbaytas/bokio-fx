@@ -1,4 +1,4 @@
-# Bokio Currency Converter
+# Bokio FX
 
 Chrome extension that automatically detects foreign currencies on [Bokio](https://www.bokio.se) invoice pages and converts amounts to SEK using official Riksbanken exchange rates.
 

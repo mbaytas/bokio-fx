@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Bokio Currency Converter",
+  "name": "Bokio FX",
   "version": "0.6",
   "description": "Converts foreign currency amounts to SEK using Riksbanken rates on Bokio invoice pages.",
   "permissions": ["offscreen"],
@@ -38,7 +38,7 @@
     }
   ],
   "action": {
-    "default_title": "Bokio Currency Converter"
+    "default_title": "Bokio FX"
   },
   "icons": {
     "48": "icon48.png",

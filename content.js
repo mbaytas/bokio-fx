@@ -1,10 +1,9 @@
-// Bokio Foreign Currency → SEK Converter
-// Sonner-style toast in top-right corner
+// Bokio FX — Foreign Currency → SEK Converter
 
 (function () {
   "use strict";
 
-  const TAG = "[BKX]";
+  const TAG = "[BFX]";
   const log = (...args) => console.log(TAG, ...args);
 
   const CURRENCIES = {
@@ -96,7 +95,7 @@
   function getContainer() {
     if (containerEl && containerEl.parentElement) return containerEl;
     containerEl = document.createElement("div");
-    containerEl.className = "bkx-toast-container";
+    containerEl.className = "bfx-toast-container";
     document.body.appendChild(containerEl);
     return containerEl;
   }
@@ -105,7 +104,7 @@
     if (!toastEl) return;
     log("dismiss toast", animate !== false ? "(animate)" : "(instant)");
     if (animate !== false) {
-      toastEl.classList.add("bkx-toast-dismiss");
+      toastEl.classList.add("bfx-toast-dismiss");
       const el = toastEl;
       setTimeout(() => el.remove(), 400);
     } else {
@@ -118,15 +117,15 @@
     log("show toast", opts.error ? "(error)" : "");
     dismissToast(false);
     const container = getContainer();
-    const stale = container.querySelectorAll(".bkx-toast");
+    const stale = container.querySelectorAll(".bfx-toast");
     if (stale.length) log("removing", stale.length, "stale toast(s)");
     for (const el of stale) el.remove();
 
     toastEl = document.createElement("div");
-    toastEl.className = "bkx-toast" + (opts.error ? " bkx-toast-error" : "");
+    toastEl.className = "bfx-toast" + (opts.error ? " bfx-toast-error" : "");
     toastEl.innerHTML = html;
 
-    const closeBtn = toastEl.querySelector(".bkx-toast-close");
+    const closeBtn = toastEl.querySelector(".bfx-toast-close");
     if (closeBtn) closeBtn.addEventListener("click", () => dismissToast(true));
 
     container.appendChild(toastEl);
@@ -360,12 +359,12 @@
   function showPicker() {
     log("showing currency picker");
     showToast(`
-      <div class="bkx-toast-header">
-        <span class="bkx-toast-title">Select currency</span>
-        <button class="bkx-toast-close">✕</button>
+      <div class="bfx-toast-header">
+        <span class="bfx-toast-title">Select currency</span>
+        <button class="bfx-toast-close">✕</button>
       </div>
       <div data-role="content">
-        <select class="bkx-toast-select">
+        <select class="bfx-toast-select">
           <option value="">Choose…</option>
           ${buildCurrencyOptions()}
         </select>
@@ -399,16 +398,16 @@
     const sym = CURRENCIES[currency]?.symbol || "";
 
     showToast(`
-      <div class="bkx-toast-header">
-        <span class="bkx-toast-title"><span class="bkx-toast-currency" data-action="change">${sym} ${currency}</span> <span class="bkx-toast-arrow">→</span> SEK</span>
-        <button class="bkx-toast-close">✕</button>
+      <div class="bfx-toast-header">
+        <span class="bfx-toast-title"><span class="bfx-toast-currency" data-action="change">${sym} ${currency}</span> <span class="bfx-toast-arrow">→</span> SEK</span>
+        <button class="bfx-toast-close">✕</button>
       </div>
-      <select class="bkx-toast-select bkx-toast-select-hidden" data-role="currency-change">
+      <select class="bfx-toast-select bfx-toast-select-hidden" data-role="currency-change">
         ${buildCurrencyOptions(currency)}
       </select>
       <div data-role="content">
-        <div class="bkx-toast-loading">
-          <span class="bkx-toast-spinner"></span>
+        <div class="bfx-toast-loading">
+          <span class="bfx-toast-spinner"></span>
           Fetching rate…
         </div>
       </div>
@@ -418,7 +417,7 @@
 
     currentToast.querySelector('[data-action="change"]').addEventListener("click", () => {
       currentToast.querySelector('[data-role="currency-change"]')
-        .classList.toggle("bkx-toast-select-hidden");
+        .classList.toggle("bfx-toast-select-hidden");
     });
 
     currentToast.querySelector('[data-role="currency-change"]').addEventListener("change", (e) => {
@@ -441,16 +440,27 @@
       const fmtSek = sekAmount.toLocaleString("sv-SE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
       currentToast.querySelector('[data-role="content"]').innerHTML = `
-        <div class="bkx-toast-body">
-          <span class="bkx-toast-calc">${fmtAmount} × ${rate.toFixed(4)}</span>
-          <span class="bkx-toast-date">${rateDate}</span>
+        <div class="bfx-rate-panel">
+          <div class="bfx-rate-row">
+            <span class="bfx-rate-amount">${fmtAmount}</span>
+            <span class="bfx-rate-op">×</span>
+            <span class="bfx-rate-value">${rate.toFixed(4)}</span>
+          </div>
+          <div class="bfx-rate-meta">
+            <span class="bfx-rate-date">${rateDate}</span>
+            <span class="bfx-rate-sep">·</span>
+            <span class="bfx-rate-source">Riksbanken</span>
+          </div>
         </div>
-        <div class="bkx-toast-result">${fmtSek} kr</div>
-        <div class="bkx-toast-actions">
-          <button class="bkx-toast-btn bkx-toast-btn-primary" data-action="apply">Apply</button>
-          <button class="bkx-toast-btn bkx-toast-btn-secondary" data-action="dismiss">Dismiss</button>
+        <div class="bfx-result-row">
+          <span class="bfx-result-value">${fmtSek}</span>
+          <span class="bfx-result-unit">SEK</span>
         </div>
-        ${region ? `<div class="bkx-toast-region" data-role="region-indicator"></div>` : ""}
+        <div class="bfx-toast-actions">
+          <button class="bfx-toast-btn bfx-toast-btn-primary" data-action="apply">Apply</button>
+          <button class="bfx-toast-btn bfx-toast-btn-secondary" data-action="dismiss">Dismiss</button>
+        </div>
+        ${region ? `<div class="bfx-toast-region" data-role="region-indicator"></div>` : ""}
       `;
 
       if (region) {
@@ -459,10 +469,10 @@
           const current = getCurrentSellerCountry();
           const match = current && current.includes(region);
           log("region indicator update — suggestion:", region, "current:", current, "match:", match);
-          regionEl.className = "bkx-toast-region " + (match ? "bkx-region-ok" : "bkx-region-warn");
+          regionEl.className = "bfx-toast-region " + (match ? "bfx-region-ok" : "bfx-region-warn");
           regionEl.innerHTML = `
-            <span class="bkx-toast-region-icon">${match ? "✓" : "!"}</span>
-            <span class="bkx-toast-region-label">Säljarens land: ${region}</span>
+            <span class="bfx-toast-region-icon">${match ? "✓" : "!"}</span>
+            <span class="bfx-toast-region-label">Säljarens land: ${region}</span>
           `;
         }
         updateRegionIndicator();
@@ -479,9 +489,14 @@
         const sekStr = sekAmount.toFixed(2).replace(".", ",");
         setReactInputValue(amountInput, sekStr);
         e.target.textContent = "Applied ✓";
-        e.target.classList.add("bkx-applied");
+        e.target.classList.add("bfx-applied");
         suppressed = true;
-        setTimeout(dismissToast, 800);
+
+        const regionMatch = !region || (getCurrentSellerCountry() && getCurrentSellerCountry().includes(region));
+        log("post-apply region check — region:", region, "match:", regionMatch);
+        if (regionMatch) {
+          setTimeout(dismissToast, 800);
+        }
       });
 
       currentToast.querySelector('[data-action="dismiss"]').addEventListener("click", () => dismissToast(true));
@@ -490,11 +505,11 @@
       if (toastEl !== currentToast) return;
 
       currentToast.querySelector('[data-role="content"]').innerHTML = `
-        <div class="bkx-toast-body bkx-toast-error-msg">
+        <div class="bfx-toast-body bfx-toast-error-msg">
           ${err.message}
         </div>
       `;
-      currentToast.classList.add("bkx-toast-error");
+      currentToast.classList.add("bfx-toast-error");
     } finally {
       converting = false;
     }
@@ -533,13 +548,13 @@
     hasRun = true;
     log("run: inputs ready, starting OCR detection...");
     showToast(`
-      <div class="bkx-toast-header">
-        <span class="bkx-toast-title">Reading receipt…</span>
-        <button class="bkx-toast-close">✕</button>
+      <div class="bfx-toast-header">
+        <span class="bfx-toast-title">Reading receipt…</span>
+        <button class="bfx-toast-close">✕</button>
       </div>
       <div data-role="content">
-        <div class="bkx-toast-loading">
-          <span class="bkx-toast-spinner"></span>
+        <div class="bfx-toast-loading">
+          <span class="bfx-toast-spinner"></span>
           Scanning for currency…
         </div>
       </div>
