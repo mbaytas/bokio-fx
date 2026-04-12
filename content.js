@@ -376,6 +376,8 @@
     } else if (manual) {
       log("run: no currency detected, showing picker (manual)");
       showPicker();
+    } else if (hasRun) {
+      log("run: no currency detected, already shown picker");
     } else if (retryCount < 5) {
       retryCount++;
       const delay = retryCount * 500;
@@ -383,6 +385,7 @@
       setTimeout(run, delay);
     } else {
       log("run: no currency detected after retries, showing picker");
+      hasRun = true;
       showPicker();
     }
   }
