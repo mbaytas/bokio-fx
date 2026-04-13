@@ -90,12 +90,21 @@
   let suppressed = false;
   let converting = false;
 
+  let activeCurrency = null;
+  let activeRegion = null;
+  let convertToast = null;
+  let convertId = 0;
+  let amountApplied = false;
+  let regionCleanup = null;
+
   // ── Toast container ─────────────────────────────────────────────
 
   function getContainer() {
     if (containerEl && containerEl.parentElement) return containerEl;
     containerEl = document.createElement("div");
     containerEl.className = "bfx-toast-container";
+    containerEl.setAttribute("role", "status");
+    containerEl.setAttribute("aria-live", "polite");
     document.body.appendChild(containerEl);
     return containerEl;
   }
@@ -103,6 +112,11 @@
   function dismissToast(animate) {
     if (!toastEl) return;
     log("dismiss toast", animate !== false ? "(animate)" : "(instant)");
+    if (regionCleanup) { regionCleanup(); regionCleanup = null; }
+    convertToast = null;
+    amountApplied = false;
+    prevRateText = "";
+    prevResultText = "";
     if (animate !== false) {
       toastEl.classList.add("bfx-toast-dismiss");
       const el = toastEl;
@@ -344,6 +358,41 @@
     input.dispatchEvent(new Event("blur", { bubbles: true }));
   }
 
+  // ── Number flow animation ───────────────────────────────────────
+
+  const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+  let prevRateText = "";
+  let prevResultText = "";
+
+  function numberFlow(el, text, prev) {
+    if (!prev || reducedMotion.matches) {
+      el.textContent = text;
+      return;
+    }
+
+    const frag = document.createDocumentFragment();
+    for (let i = 0; i < text.length; i++) {
+      const ch = text[i];
+      const pch = i < prev.length ? prev[i] : null;
+
+      if (/\d/.test(ch) && pch && /\d/.test(pch) && ch !== pch) {
+        const slot = document.createElement("span");
+        slot.className = "bfx-nf";
+        slot.textContent = ch;
+        const up = +ch > +pch;
+        slot.animate([
+          { transform: `translateY(${up ? "30%" : "-30%"})`, opacity: 0 },
+          { transform: "translateY(0)", opacity: 1 }
+        ], { duration: 400, easing: "cubic-bezier(0.16, 1, 0.3, 1)" });
+        frag.appendChild(slot);
+      } else {
+        frag.appendChild(document.createTextNode(ch));
+      }
+    }
+    el.textContent = "";
+    el.appendChild(frag);
+  }
+
   // ── Toast views ─────────────────────────────────────────────────
 
   function buildCurrencyOptions(selected) {
@@ -359,13 +408,15 @@
   function showPicker() {
     log("showing currency picker");
     showToast(`
+      <div class="bfx-toast-topbar">
+        <span class="bfx-toast-brand">BOKIO-FX</span>
+        <button class="bfx-toast-close" aria-label="Close">✕</button>
+      </div>
       <div class="bfx-toast-header">
         <span class="bfx-toast-title">Select currency</span>
-        <button class="bfx-toast-close">✕</button>
       </div>
       <div data-role="content">
-        <select class="bfx-toast-select">
-          <option value="">Choose…</option>
+        <select class="bfx-toast-select" aria-label="Currency">
           ${buildCurrencyOptions()}
         </select>
       </div>
@@ -378,8 +429,44 @@
 
   // ── Conversion flow ─────────────────────────────────────────────
 
+  function setupRegionIndicator(container, region) {
+    if (regionCleanup) { regionCleanup(); regionCleanup = null; }
+    if (!region) return;
+
+    const el = container.querySelector('[data-role="region-indicator"]');
+    if (!el) return;
+
+    function update() {
+      const current = getCurrentSellerCountry();
+      const match = current && current.includes(region);
+      log("region indicator:", region, "current:", current, "match:", match);
+      el.className = "bfx-toast-region " + (match ? "bfx-region-ok" : "bfx-region-warn");
+      el.innerHTML = `
+        <span class="bfx-toast-region-icon"></span>
+        <span class="bfx-toast-region-label">Säljarens land: ${region}</span>
+      `;
+      if (amountApplied && match) {
+        log("region now matches after apply — auto-dismissing");
+        setTimeout(dismissToast, 800);
+      }
+    }
+    update();
+
+    const deferred = () => setTimeout(update, 300);
+    document.addEventListener("click", deferred, true);
+    document.addEventListener("keyup", deferred, true);
+    regionCleanup = () => {
+      document.removeEventListener("click", deferred, true);
+      document.removeEventListener("keyup", deferred, true);
+    };
+  }
+
   async function convert(currency, region) {
-    log("convert:", currency);
+    if (region !== undefined) activeRegion = region;
+    activeCurrency = currency;
+    const thisId = ++convertId;
+
+    log("convert:", currency, "region:", activeRegion);
     const amountInput = getAmountInput();
     const dateStr = getPaymentDate();
     if (!amountInput || !dateStr) {
@@ -393,116 +480,161 @@
       return;
     }
 
-    log("convert:", amount, currency, "on", dateStr);
     converting = true;
+    amountApplied = false;
     const sym = CURRENCIES[currency]?.symbol || "";
 
-    showToast(`
-      <div class="bfx-toast-header">
-        <span class="bfx-toast-title"><span class="bfx-toast-currency" data-action="change">${sym} ${currency}</span> <span class="bfx-toast-arrow">→</span> SEK</span>
-        <button class="bfx-toast-close">✕</button>
-      </div>
-      <select class="bfx-toast-select bfx-toast-select-hidden" data-role="currency-change">
-        ${buildCurrencyOptions(currency)}
-      </select>
-      <div data-role="content">
-        <div class="bfx-toast-loading">
-          <span class="bfx-toast-spinner"></span>
-          Fetching rate…
+    if (regionCleanup) { regionCleanup(); regionCleanup = null; }
+
+    const canReuse = convertToast && convertToast.parentElement
+      && convertToast.querySelector('[data-role="currency-change"]');
+
+    let currentToast;
+
+    if (canReuse) {
+      log("convert: reusing toast for", currency);
+      currentToast = convertToast;
+
+      currentToast.querySelector(".bfx-toast-title").innerHTML =
+        `<span class="bfx-toast-currency" data-action="change">${sym} ${currency}</span> <span class="bfx-toast-arrow">→</span> SEK`;
+
+      const sel = currentToast.querySelector('[data-role="currency-change"]');
+      sel.innerHTML = buildCurrencyOptions(currency);
+      sel.classList.add("bfx-toast-select-hidden");
+
+      currentToast.classList.add("bfx-toast-updating");
+    } else {
+      showToast(`
+        <div class="bfx-toast-topbar">
+          <span class="bfx-toast-brand">BOKIO-FX</span>
+          <button class="bfx-toast-close" aria-label="Close">✕</button>
         </div>
-      </div>
-    `);
+        <div class="bfx-toast-header">
+          <span class="bfx-toast-title"><span class="bfx-toast-currency" data-action="change">${sym} ${currency}</span> <span class="bfx-toast-arrow">→</span> SEK</span>
+        </div>
+        <select class="bfx-toast-select bfx-toast-select-hidden" data-role="currency-change" aria-label="Currency">
+          ${buildCurrencyOptions(currency)}
+        </select>
+        <div data-role="content">
+          <div class="bfx-toast-loading" aria-live="polite">
+            <span class="bfx-toast-spinner"></span>
+            Fetching rate…
+          </div>
+        </div>
+      `);
 
-    const currentToast = toastEl;
+      currentToast = toastEl;
+      convertToast = currentToast;
 
-    currentToast.querySelector('[data-action="change"]').addEventListener("click", () => {
+      currentToast.addEventListener("click", (e) => {
+        const a = e.target.closest("[data-action]");
+        if (!a) return;
+        if (a.dataset.action === "change") {
+          const sel = currentToast.querySelector('[data-role="currency-change"]');
+          sel.classList.remove("bfx-toast-select-hidden");
+          try { sel.showPicker(); } catch (_) { sel.focus(); }
+        } else if (a.dataset.action === "dismiss") {
+          dismissToast(true);
+        }
+      });
+
       currentToast.querySelector('[data-role="currency-change"]')
-        .classList.toggle("bfx-toast-select-hidden");
-    });
-
-    currentToast.querySelector('[data-role="currency-change"]').addEventListener("change", (e) => {
-      if (e.target.value && e.target.value !== currency) {
-        convert(e.target.value);
-      }
-    });
+        .addEventListener("change", (e) => {
+          if (e.target.value && e.target.value !== activeCurrency) {
+            convert(e.target.value);
+          }
+        });
+    }
 
     try {
       const { rate, date: rateDate } = await fetchRate(currency, dateStr);
       const sekAmount = amount * rate;
 
-      if (toastEl !== currentToast) {
-        log("convert: toast replaced during fetch, aborting");
+      if (thisId !== convertId) {
+        log("convert: superseded by newer conversion");
+        return;
+      }
+      if (!currentToast.parentElement) {
+        log("convert: toast removed during fetch");
         return;
       }
 
       log("convert result:", amount, currency, "×", rate, "=", sekAmount, "SEK (rate date:", rateDate + ")");
       const fmtAmount = amount.toLocaleString("sv-SE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
       const fmtSek = sekAmount.toLocaleString("sv-SE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      const fmtRate = rate.toFixed(4);
 
-      currentToast.querySelector('[data-role="content"]').innerHTML = `
-        <div class="bfx-rate-panel">
-          <div class="bfx-rate-row">
-            <span class="bfx-rate-amount">${fmtAmount}</span>
-            <span class="bfx-rate-op">×</span>
-            <span class="bfx-rate-value">${rate.toFixed(4)}</span>
+      currentToast.classList.remove("bfx-toast-updating");
+
+      const contentEl = currentToast.querySelector('[data-role="content"]');
+      const inPlace = canReuse && contentEl.querySelector(".bfx-rate-panel");
+
+      if (inPlace) {
+        log("convert: in-place update");
+        contentEl.querySelector(".bfx-rate-amount").textContent = `${fmtAmount} ${currency}`;
+        numberFlow(contentEl.querySelector(".bfx-rate-value"), fmtRate, prevRateText);
+        contentEl.querySelector(".bfx-rate-source").textContent = `Riksbanken rate on ${rateDate}`;
+        numberFlow(contentEl.querySelector(".bfx-result-value"), fmtSek, prevResultText);
+
+        const oldBtn = contentEl.querySelector('[data-action="apply"]');
+        const freshBtn = oldBtn.cloneNode(true);
+        freshBtn.textContent = "Apply";
+        freshBtn.classList.remove("bfx-applied");
+        oldBtn.replaceWith(freshBtn);
+
+        setupRegionIndicator(contentEl, activeRegion);
+      } else {
+        contentEl.innerHTML = `
+          <div class="bfx-rate-panel">
+            <div class="bfx-rate-row">
+              <span class="bfx-rate-amount">${fmtAmount} ${currency}</span>
+              <span class="bfx-rate-op">×</span>
+              <span class="bfx-rate-value"></span>
+            </div>
+            <div class="bfx-rate-meta">
+              <span class="bfx-rate-source">Riksbanken rate on ${rateDate}</span>
+            </div>
           </div>
-          <div class="bfx-rate-meta">
-            <span class="bfx-rate-date">${rateDate}</span>
-            <span class="bfx-rate-sep">·</span>
-            <span class="bfx-rate-source">Riksbanken</span>
+          <div class="bfx-result-row">
+            <span class="bfx-result-value"></span>
+            <span class="bfx-result-unit">SEK</span>
           </div>
-        </div>
-        <div class="bfx-result-row">
-          <span class="bfx-result-value">${fmtSek}</span>
-          <span class="bfx-result-unit">SEK</span>
-        </div>
-        <div class="bfx-toast-actions">
-          <button class="bfx-toast-btn bfx-toast-btn-primary" data-action="apply">Apply</button>
-          <button class="bfx-toast-btn bfx-toast-btn-secondary" data-action="dismiss">Dismiss</button>
-        </div>
-        ${region ? `<div class="bfx-toast-region" data-role="region-indicator"></div>` : ""}
-      `;
+          <div class="bfx-toast-actions">
+            <button class="bfx-toast-btn bfx-toast-btn-primary" data-action="apply">Apply</button>
+            <button class="bfx-toast-btn bfx-toast-btn-secondary" data-action="dismiss">Dismiss</button>
+          </div>
+          ${activeRegion ? `<div class="bfx-toast-region" data-role="region-indicator"></div>` : ""}
+        `;
 
-      if (region) {
-        const regionEl = currentToast.querySelector('[data-role="region-indicator"]');
-        function updateRegionIndicator() {
-          const current = getCurrentSellerCountry();
-          const match = current && current.includes(region);
-          log("region indicator update — suggestion:", region, "current:", current, "match:", match);
-          regionEl.className = "bfx-toast-region " + (match ? "bfx-region-ok" : "bfx-region-warn");
-          regionEl.innerHTML = `
-            <span class="bfx-toast-region-icon">${match ? "✓" : "!"}</span>
-            <span class="bfx-toast-region-label">Säljarens land: ${region}</span>
-          `;
-        }
-        updateRegionIndicator();
+        numberFlow(contentEl.querySelector(".bfx-rate-value"), fmtRate, prevRateText);
+        numberFlow(contentEl.querySelector(".bfx-result-value"), fmtSek, prevResultText);
 
-        function deferredUpdate() {
-          setTimeout(updateRegionIndicator, 300);
-        }
-        document.addEventListener("click", deferredUpdate, true);
-        document.addEventListener("keyup", deferredUpdate, true);
+        setupRegionIndicator(contentEl, activeRegion);
       }
 
-      currentToast.querySelector('[data-action="apply"]').addEventListener("click", (e) => {
-        log("apply:", fmtSek, "kr");
-        const sekStr = sekAmount.toFixed(2).replace(".", ",");
-        setReactInputValue(amountInput, sekStr);
-        e.target.textContent = "Applied ✓";
-        e.target.classList.add("bfx-applied");
-        suppressed = true;
+      prevRateText = fmtRate;
+      prevResultText = fmtSek;
 
-        const regionMatch = !region || (getCurrentSellerCountry() && getCurrentSellerCountry().includes(region));
-        log("post-apply region check — region:", region, "match:", regionMatch);
-        if (regionMatch) {
-          setTimeout(dismissToast, 800);
-        }
-      });
+      contentEl.querySelector('[data-action="apply"]')
+        .addEventListener("click", (e) => {
+          log("apply:", fmtSek, "SEK");
+          const sekStr = sekAmount.toFixed(2).replace(".", ",");
+          setReactInputValue(amountInput, sekStr);
+          e.target.textContent = "Applied ✓";
+          e.target.classList.add("bfx-applied");
+          suppressed = true;
+          amountApplied = true;
 
-      currentToast.querySelector('[data-action="dismiss"]').addEventListener("click", () => dismissToast(true));
+          const regionMatch = !activeRegion
+            || (getCurrentSellerCountry() && getCurrentSellerCountry().includes(activeRegion));
+          log("post-apply region check:", regionMatch);
+          if (regionMatch) {
+            setTimeout(dismissToast, 800);
+          }
+        });
     } catch (err) {
       log("convert error:", err.message);
-      if (toastEl !== currentToast) return;
+      if (thisId !== convertId || !currentToast.parentElement) return;
 
       currentToast.querySelector('[data-role="content"]').innerHTML = `
         <div class="bfx-toast-body bfx-toast-error-msg">
@@ -548,12 +680,15 @@
     hasRun = true;
     log("run: inputs ready, starting OCR detection...");
     showToast(`
+      <div class="bfx-toast-topbar">
+        <span class="bfx-toast-brand">BOKIO-FX</span>
+        <button class="bfx-toast-close" aria-label="Close">✕</button>
+      </div>
       <div class="bfx-toast-header">
         <span class="bfx-toast-title">Reading receipt…</span>
-        <button class="bfx-toast-close">✕</button>
       </div>
       <div data-role="content">
-        <div class="bfx-toast-loading">
+        <div class="bfx-toast-loading" aria-live="polite">
           <span class="bfx-toast-spinner"></span>
           Scanning for currency…
         </div>
