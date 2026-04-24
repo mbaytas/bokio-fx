@@ -46,13 +46,19 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     log("fetch rate:", series, from, "→", to);
 
     fetch(url)
-      .then((res) => {
+      .then(async (res) => {
         if (!res.ok) throw new Error(`API returned ${res.status}`);
-        return res.json();
+        const body = (await res.text()).trim();
+        if (!body) return [];
+        try {
+          return JSON.parse(body);
+        } catch {
+          throw new Error("Riksbank returned invalid response");
+        }
       })
       .then((data) => {
         log("fetch ok:", series, data.length, "observations");
-        sendResponse({ ok: true, data });
+        sendResponse({ ok: true, data: Array.isArray(data) ? data : [] });
       })
       .catch((err) => {
         log("fetch error:", series, err.message);

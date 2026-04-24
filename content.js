@@ -160,6 +160,12 @@
       }
 
       const to = new Date(dateStr);
+      if (isNaN(to.getTime())) return reject(new Error(`Invalid payment date: ${dateStr}`));
+      const year = to.getUTCFullYear();
+      const nowYear = new Date().getUTCFullYear();
+      if (year < 1993 || year > nowYear + 1) {
+        return reject(new Error(`Payment date ${dateStr} is out of range`));
+      }
       const from = new Date(to);
       from.setDate(from.getDate() - 10);
       const fmt = (d) => d.toISOString().slice(0, 10);
@@ -227,11 +233,11 @@
     { pattern: /€/,                               code: "EUR" },
     { pattern: /\bEUR\b/,                          code: "EUR" },
     { pattern: /\bEuro\b/i,                        code: "EUR" },
-    { pattern: /[€E¢C]\s*\d[\d.,]*\d{2}\b/,        code: "EUR" },
-    { pattern: /\d[\d.,]*\d{2}\s*[€]/,             code: "EUR" },
     { pattern: /\bUSD\b/,                          code: "USD" },
     { pattern: /\$\s*\d[\d.,]*\d{2}\b/,            code: "USD" },
     { pattern: /\d[\d.,]*\d{2}\s*\$/,              code: "USD" },
+    { pattern: /(?<![A-Za-z0-9])[€¢]\s*\d[\d.,]*\d{2}\b/, code: "EUR" },
+    { pattern: /\d[\d.,]*\d{2}\s*[€]/,             code: "EUR" },
     { pattern: /£/,                                code: "GBP" },
     { pattern: /\bGBP\b/,                          code: "GBP" },
     { pattern: /£\s*\d[\d.,]*\d{2}\b/,             code: "GBP" },
