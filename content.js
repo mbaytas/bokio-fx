@@ -766,9 +766,12 @@
 
     const { currency: detected, region } = await ocrDetectCurrency();
 
-    if (detected === "SEK") {
+    if (detected === "SEK" && !manual) {
       log("run: receipt is in SEK (via OCR), no conversion needed");
       dismissToast(false);
+    } else if (detected === "SEK") {
+      log("run: receipt is in SEK (via OCR) but launched manually, showing picker");
+      showPicker();
     } else if (detected) {
       const state = `${detected}_${amount}_${dateStr}`;
       log("run: OCR detected", detected, "region:", region, "— state:", state);
