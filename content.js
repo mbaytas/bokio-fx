@@ -269,20 +269,43 @@
     { pattern: /\bISK\b/,                          code: "ISK" },
   ];
 
+  // Lines whose currency should carry extra weight (the amount actually paid).
+  const TOTAL_LINE = /\b(total|amount due|grand total|amount paid|summa|att betala|totalt)\b/i;
+  const TOTAL_BOOST = 5;
+
+  function scoreCurrencies(text) {
+    const scores = {};
+    const add = (code, n) => { scores[code] = (scores[code] || 0) + n; };
+
+    for (const { pattern, code } of OCR_PATTERNS) {
+      const flags = pattern.flags.includes("g") ? pattern.flags : pattern.flags + "g";
+      const matches = text.match(new RegExp(pattern.source, flags));
+      if (matches) add(code, matches.length);
+    }
+
+    for (const line of text.split(/\r?\n/)) {
+      if (!TOTAL_LINE.test(line)) continue;
+      for (const { pattern, code } of OCR_PATTERNS) {
+        if (pattern.test(line)) { add(code, TOTAL_BOOST); break; }
+      }
+    }
+    return scores;
+  }
+
   function detectCurrencyInText(text, source) {
     log("scanning text for currency (" + source + "), length:", text.length);
     log("OCR text:", text);
 
-    for (const { pattern, code } of OCR_PATTERNS) {
-      const found = pattern.test(text);
-      if (found) {
-        const match = text.match(pattern);
-        log("detected currency:", code, "via pattern", pattern.toString(), "matched:", match?.[0]);
-        return code;
-      }
+    const scores = scoreCurrencies(text);
+    const ranked = Object.entries(scores).sort((a, b) => b[1] - a[1]);
+    if (ranked.length === 0) {
+      log("no currency found in", source);
+      return null;
     }
-    log("no currency found in", source);
-    return null;
+    log("currency scores:", JSON.stringify(scores));
+    const [code] = ranked[0];
+    log("detected currency:", code);
+    return code;
   }
 
   function blobToDataUrl(blob) {
