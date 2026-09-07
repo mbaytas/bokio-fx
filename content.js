@@ -285,38 +285,78 @@
     return null;
   }
 
+  function blobToDataUrl(blob) {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result);
+      reader.readAsDataURL(blob);
+    });
+  }
+
+  async function imgToDataUrl(img) {
+    try {
+      const w = img.naturalWidth || img.width;
+      const h = img.naturalHeight || img.height;
+      log("canvas size:", w, "x", h);
+      const canvas = document.createElement("canvas");
+      canvas.width = w;
+      canvas.height = h;
+      canvas.getContext("2d").drawImage(img, 0, 0);
+      const dataUrl = canvas.toDataURL("image/png");
+      log("image captured via canvas, base64 length:", dataUrl.length);
+      return dataUrl;
+    } catch (canvasErr) {
+      log("canvas tainted (cross-origin), fetching image directly...");
+      const resp = await fetch(img.src);
+      const dataUrl = await blobToDataUrl(await resp.blob());
+      log("image fetched directly, base64 length:", dataUrl.length);
+      return dataUrl;
+    }
+  }
+
+  // Bokio has rendered the receipt preview in different ways over time.
+  // Try each known source in order and return a data URL, or null.
+  async function captureReceiptImage() {
+    // 1. Legacy full-size <img> preview
+    const legacy = document.querySelector('img[data-testid="ReceiptPageViewInReceiptOverview_Image"]');
+    if (legacy) {
+      log("receipt image found (legacy img), src:", legacy.src?.substring(0, 80) + "...");
+      return imgToDataUrl(legacy);
+    }
+
+    // 2. Page thumbnails pointing at the same-origin receipt endpoint.
+    //    Fetching the src returns the full-resolution page image.
+    const thumb = document.querySelector(
+      'img[src*="/Receipt/ShowReciept/"], img[src*="/Receipt/ShowReceipt/"]'
+    );
+    if (thumb) {
+      log("receipt thumbnail found, fetching full image:", thumb.src?.substring(0, 80) + "...");
+      const resp = await fetch(thumb.src, { credentials: "include" });
+      if (!resp.ok) throw new Error(`receipt fetch returned ${resp.status}`);
+      const dataUrl = await blobToDataUrl(await resp.blob());
+      log("receipt fetched, base64 length:", dataUrl.length);
+      return dataUrl;
+    }
+
+    // 3. Bokio's own OCR canvas overlay
+    const canvas = document.querySelector('canvas[data-testid="OcrCanvasOverlay"]');
+    if (canvas && canvas.width > 0 && canvas.height > 0) {
+      log("receipt canvas found:", canvas.width, "x", canvas.height);
+      const dataUrl = canvas.toDataURL("image/png");
+      log("canvas captured, base64 length:", dataUrl.length);
+      return dataUrl;
+    }
+
+    return null;
+  }
+
   async function ocrDetectCurrency() {
     log("looking for receipt image...");
-    const img = document.querySelector('img[data-testid="ReceiptPageViewInReceiptOverview_Image"]');
-    if (!img) {
-      log("no receipt image found");
-      return { currency: null, region: null };
-    }
-    log("receipt image found, src:", img.src?.substring(0, 80) + "...");
-
     try {
-      let dataUrl;
-      try {
-        const w = img.naturalWidth || img.width;
-        const h = img.naturalHeight || img.height;
-        log("canvas size:", w, "x", h);
-        const canvas = document.createElement("canvas");
-        canvas.width = w;
-        canvas.height = h;
-        const ctx = canvas.getContext("2d");
-        ctx.drawImage(img, 0, 0);
-        dataUrl = canvas.toDataURL("image/png");
-        log("image captured via canvas, base64 length:", dataUrl.length);
-      } catch (canvasErr) {
-        log("canvas tainted (cross-origin), fetching image directly...");
-        const resp = await fetch(img.src);
-        const blob = await resp.blob();
-        dataUrl = await new Promise((resolve) => {
-          const reader = new FileReader();
-          reader.onloadend = () => resolve(reader.result);
-          reader.readAsDataURL(blob);
-        });
-        log("image fetched directly, base64 length:", dataUrl.length);
+      const dataUrl = await captureReceiptImage();
+      if (!dataUrl) {
+        log("no receipt image found");
+        return { currency: null, region: null };
       }
 
       log("sending image to OCR...");
@@ -340,7 +380,7 @@
 
       if (!result?.ok) {
         log("OCR failed:", result?.error);
-        return null;
+        return { currency: null, region: null };
       }
 
       log("OCR raw text:", result.text);
